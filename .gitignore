@@ -1,2 +1,4 @@
-target/
+/target
 .direnv
+Cargo.toml
+Cargo.lock
