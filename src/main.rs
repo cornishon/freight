@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ";
 
     let mut args = std::env::args().skip(1);
-    match args.next().as_ref().map(String::as_str) {
+    match args.next().as_deref() {
         Some("build") => freight::build()?, // This is new
         Some("help") => println!("{HELP}"),
         _ => {

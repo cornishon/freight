@@ -143,7 +143,7 @@ impl Rustc {
             .arg("--crate-type")
             .arg(self.crate_type.to_string())
             .arg("--crate-name")
-            .arg(self.crate_name.to_string())
+            .arg(&self.crate_name)
             .arg("--out-dir")
             .arg(self.out_dir)
             .arg("-L")
