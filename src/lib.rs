@@ -1,7 +1,71 @@
 use std::error::Error;
-use std::fmt;
+use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::process::Command;
+use std::{env, fmt, fs};
+
+pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
+pub fn build() -> Result<()> {
+    let root_dir = root_dir()?;
+    // TODO: get this from a config file
+    let crate_name = root_dir
+        .file_name()
+        .ok_or::<Box<dyn Error>>("Freight run in directory without a name".into())?
+        .to_str()
+        .unwrap();
+    let lib_rs = root_dir.join("src").join("lib.rs");
+    let main_rs = root_dir.join("src").join("main.rs");
+    let target = root_dir.join("target");
+    let target_debug = target.join("debug");
+    fs::create_dir_all(&target_debug)?;
+
+    let compile_lib = || -> Result<()> {
+        println!("Compiling lib.rs");
+        Rustc::builder()
+            .edition(Edition::E2021)
+            .crate_type(CrateType::Lib)
+            .crate_name(crate_name)
+            .out_dir(&target_debug)
+            .lib_dir(&target_debug)
+            .build()
+            .run(&lib_rs)?;
+        println!("Compiling lib.rs -- DONE");
+        Ok(())
+    };
+
+    let compile_bin = |externs: Vec<&str>| -> Result<()> {
+        println!("Compiling main.rs");
+        let mut builder = Rustc::builder()
+            .edition(Edition::E2021)
+            .crate_type(CrateType::Bin)
+            .crate_name(crate_name)
+            .out_dir(&target_debug)
+            .lib_dir(&target_debug);
+        for ex in externs {
+            builder = builder.externs(ex);
+        }
+        builder.build().run(&main_rs)?;
+        println!("Compiling main.rs -- DONE");
+        Ok(())
+    };
+
+    match (lib_rs.exists(), main_rs.exists()) {
+        (true, true) => {
+            compile_lib()?;
+            compile_bin(vec![crate_name])?;
+        }
+        (true, false) => {
+            compile_lib()?;
+        }
+        (false, true) => {
+            compile_bin(vec![])?;
+        }
+        (false, false) => return Err("There is nothing to compile".into()),
+    }
+
+    Ok(())
+}
 
 pub struct Rustc {
     edition: Edition,
@@ -71,7 +135,7 @@ impl Rustc {
         Default::default()
     }
 
-    pub fn run(self, path: &str) -> Result<(), Box<dyn Error>> {
+    pub fn run<S: AsRef<OsStr>>(self, path: &S) -> Result<()> {
         Command::new("rustc")
             .arg(path)
             .arg("--edition")
@@ -132,4 +196,14 @@ impl RustcBuilder {
             externs: self.externs,
         }
     }
+}
+
+fn root_dir() -> Result<PathBuf> {
+    let current_dir = env::current_dir()?;
+    for ancestor in current_dir.ancestors() {
+        if ancestor.join(".git").exists() {
+            return Ok(ancestor.into());
+        }
+    }
+    Err("No root dir".into())
 }

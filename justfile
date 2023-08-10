@@ -1,18 +1,19 @@
 run: build
-    ./target/bootstrap_stage0/freight_stage0
-    ./target/bootstrap_stage1/freight_stage1 help
+    ./target/bootstrap/freight build
+    ./target/debug/freight help
 
 build:
+    rm -rf target
     mkdir -p target/bootstrap_stage0
     # Build crate dependencies
     rustc --edition 2021 --crate-name=freight \
         --crate-type=lib \
-        --out-dir=target/bootstrap_stage0 \
+        --out-dir=target/bootstrap \
         src/lib.rs
     # Create the executable
-    rustc --edition 2021 --crate-name=freight_stage0 \
+    rustc --edition 2021 --crate-name=freight \
         --crate-type=bin \
         --extern freight \
-        -L target/bootstrap_stage0 \
-        --out-dir=target/bootstrap_stage0 \
+        -L target/bootstrap \
+        --out-dir=target/bootstrap \
         src/main.rs
